@@ -1,5 +1,5 @@
 import logging
-import ollama  # Assuming ollama is available
+import ollama 
 
 def process_general_chat(user_input):
     """

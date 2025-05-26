@@ -65,7 +65,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Set font styles
         doc.setFont("helvetica", "bold");
         doc.setFontSize(16);
-        
+            
         // Add title
         doc.text("Analysis Report", 105, 20, { align: "center" });
         

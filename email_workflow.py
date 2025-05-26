@@ -2,7 +2,7 @@ import smtplib
 import logging
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-import ollama  # Assuming ollama is available for generating content
+import ollama
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -85,7 +85,7 @@ def send_email(to_email, subject, body):
     """
     Sends an email using Gmail's SMTP server.
     """
-    # It is recommended to store sensitive credentials in environment variables
+    
     EMAIL_ADDRESS = "autoemail22@gmail.com"
     APP_PASSWORD = "wufr haao cpmg ksaw"
 

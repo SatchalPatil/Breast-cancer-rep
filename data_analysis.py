@@ -1,6 +1,5 @@
 import pandas as pd
 from typing import Tuple, List, Dict
-import os
 import ollama
 import logging
 
