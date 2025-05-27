@@ -23,7 +23,7 @@ A sophisticated AI-powered application for analyzing breast MRI scans and provid
 
 1. Clone the repository:
 ```bash
-git clone <repository-url>
+git clone https://github.com/SatchalPatil/Breast-cancer-rep.git
 cd breast-report
 ```
 
@@ -45,7 +45,7 @@ pip install -r requirements.txt
 ollama pull qwen2.5:3B
 ```
 
-## Project Structure
+## Project Structure    
 
 ```
 breast-report/
