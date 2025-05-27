@@ -6,6 +6,7 @@ import base64
 import hashlib
 import os
 from functools import lru_cache
+import re
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -64,6 +65,8 @@ class BreastMRIAnalyzer:
         except:
             pass
         
+    
+
     def analyze_mri_scan(self, image_data):
         """
         Analyzes a breast MRI scan image and determines the stage of cancer.
@@ -72,12 +75,11 @@ class BreastMRIAnalyzer:
             image_data: Image data in bytes or PIL Image format
             
         Returns:
-            dict: Analysis results containing stage and confidence
+            dict: Analysis results containing stage, confidence, and markdown report
         """
         try:
             # Generate cache key
             cache_key = self._get_cache_key(image_data)
-          
             
             # Compress image
             image = self._compress_image(image_data)
@@ -86,27 +88,27 @@ class BreastMRIAnalyzer:
             buffered = BytesIO()
             image.save(buffered, format="JPEG", quality=85)
             img_str = base64.b64encode(buffered.getvalue()).decode()
-                
+            
             # Prepare the prompt for analysis
             prompt = """
-            You are a medical AI Vision-Language assistant specialized in analyzing breast cancer medical images and generating diagnostic insights. 
+    You are a medical AI Vision-Language assistant specialized in analyzing breast cancer medical images and generating diagnostic insights.
 
-            Your task is to:
-            1. Accurately analyze the uploaded breast scan image.
-            2. Identify and classify the cancer stage as one of the following:
-               - Preliminary Stage
-               - Middle Stage
-               - Final Stage
-            3. Provide a concise medical explanation justifying your stage classification based on visual markers observed in the image (e.g., tumor size, lymph node involvement, tissue structure, etc.).
-            4. Based on the identified stage, follow these outputs:
-               - If **Preliminary Stage**:
-                   • Provide key **precautionary measures** based on standard medical guidelines to prevent cancer progression.
-               - If **Middle or Final Stage**:
-                   • Provide an **analysis of the cancer progression**, and suggest medically recommended **treatment strategies** or **recovery plans** aligned with current oncology practices.
+    Your task is to:
+    1. Accurately analyze the uploaded breast scan image.
+    2. Identify and classify the cancer stage as one of the following:
+    - Preliminary Stage
+    - Middle Stage
+    - Final Stage
+    3. Provide a concise medical explanation justifying your stage classification based on visual markers observed in the image (e.g., tumor size, lymph node involvement, tissue structure, etc.).
+    4. Based on the identified stage, follow these outputs:
+    - If **Preliminary Stage**:
+        • Provide key **precautionary measures** based on standard medical guidelines to prevent cancer progression.
+    - If **Middle or Final Stage**:
+        • Provide an **analysis of the cancer progression**, and suggest medically recommended **treatment strategies** or **recovery plans** aligned with current oncology practices.
 
-            Your output should be clear, accurate, medically relevant, and ready to be included in a structured PDF report. Avoid speculative language. Do not generate treatment or medical advice outside of recognized guidelines.
-
-            """
+    Your output should be clear, accurate, medically relevant, and ready to be included in a structured PDF report. Avoid speculative language. Do not generate treatment or medical advice outside of recognized guidelines.
+   
+                     """
             
             # Generate analysis using Ollama
             response = ollama.chat(
@@ -121,23 +123,83 @@ class BreastMRIAnalyzer:
             )
             
             # Process and structure the response
+            content = response['message']['content']
             analysis = {
-                'stage': self._extract_stage(response['message']['content']),
-                'observations': self._extract_observations(response['message']['content']),
-                'confidence': self._extract_confidence(response['message']['content']),
-                'raw_response': response['message']['content']
+                'stage': self._extract_stage(content),
+                'observations': self._extract_observations(content),
+                'confidence': self._extract_confidence(content),
+                'raw_response': content
             }
-                        
-            return analysis
+
+            # Format analysis as plain text
+            analysis_text = (
+                f"Stage: {analysis['stage']}\n"
+                f"Observations: {analysis['observations']}\n"
+                f"Confidence: {analysis['confidence']}\n"
+                f"Raw Response:\n{analysis['raw_response']}"
+            )
+
+            print(analysis['observations'])
+            print("")
+
+            # Prompt for Markdown formatting
+            markdown_prompt = f"""
+            Convert the following text into a well-structured Markdown format. Include ALL of the following sections:
+            1. Analysis (including stage, observations, and confidence level)
+            2. Detailed medical explanation
+            3. Treatment recommendations or precautionary measures based on the stage
+            4. A medical disclaimer
+
+            Format it with proper Markdown headers, bullet points, and emphasis where appropriate.
+            and Give entire response in between ```markdown``` tags
+
+            {analysis_text}
+            """
+
+            # Generate markdown from analysis
+            analysis_md_response = ollama.chat(
+                model=self.model_name,
+                messages=[
+                    {
+                        "role": "user",
+                        "content": markdown_prompt.strip()
+                    }
+                ]
+            )
             
+            analysis_md = analysis_md_response['message']['content']
+            # Extract markdown content between ```markdown``` tags
+            match = re.search(r'```markdown\n([\s\S]*?)\n```', analysis_md)
+            if not match:
+                # If no markdown tags found, use the content as is
+                analysis_new_md = analysis_md
+            else:
+                analysis_new_md = match.group(1)
+            
+            print("------------------------------------------------")
+            print(analysis_new_md)
+
+            # Include markdown result in final output
+            analysis['markdown'] = analysis_new_md
+            
+            return {
+                'stage': analysis['stage'],
+                'observations': analysis['observations'],
+                'confidence': analysis['confidence'],
+                'raw_response': analysis['raw_response'],
+                'markdown': analysis_new_md
+            }
+
         except Exception as e:
             logger.error(f"Error analyzing MRI scan: {str(e)}")
             return {
                 'error': f"Failed to analyze image: {str(e)}",
                 'stage': 'unknown',
                 'observations': [],
-                'confidence': 0.0
+                'confidence': 0.0,
+                'markdown': ''
             }
+
     
     def _extract_stage(self, response_text):
         """Extract the cancer stage from the model response."""
@@ -169,4 +231,4 @@ class BreastMRIAnalyzer:
                     return float(confidence_match.group(1)) / 100
         except:
             pass
-        return 0.0 
+        return 0.0

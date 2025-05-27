@@ -93,6 +93,11 @@ def format_image_analysis(analysis):
     if 'error' in analysis:
         return f"❌ Error: {analysis['error']}"
     
+    # Use the markdown format if available, otherwise fall back to the old format
+    if 'markdown' in analysis and analysis['markdown']:
+        return analysis['markdown']
+    
+    # Fallback to the old format
     output = "📊 Breast MRI Scan Analysis\n"
     output += "=" * 30 + "\n\n"
     
